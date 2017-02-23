@@ -7,3 +7,5 @@ target/
 .idea/
 *.versionsBackup
 *.DS_Store
+
+user.home/
