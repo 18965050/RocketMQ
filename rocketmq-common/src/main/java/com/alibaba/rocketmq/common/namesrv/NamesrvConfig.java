@@ -20,72 +20,73 @@
  */
 package com.alibaba.rocketmq.common.namesrv;
 
-import com.alibaba.rocketmq.common.MixAll;
-import com.alibaba.rocketmq.common.constant.LoggerName;
+import java.io.File;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-
+import com.alibaba.rocketmq.common.MixAll;
+import com.alibaba.rocketmq.common.constant.LoggerName;
 
 /**
  *
  * @author shijia.wxr
  * @author lansheng.zj
  */
+
+/**
+ * namesrv 配置类
+ * @author lvchenggang
+ *
+ */
 public class NamesrvConfig {
-    private static final Logger log = LoggerFactory.getLogger(LoggerName.NamesrvLoggerName);
-    private String rocketmqHome = System.getProperty(MixAll.ROCKETMQ_HOME_PROPERTY, System.getenv(MixAll.ROCKETMQ_HOME_ENV));
+	private static final Logger	log					= LoggerFactory.getLogger(LoggerName.NamesrvLoggerName);
+	private String				rocketmqHome		= System.getProperty(MixAll.ROCKETMQ_HOME_PROPERTY,
+			System.getenv(MixAll.ROCKETMQ_HOME_ENV));
 
-    private String kvConfigPath = System.getProperty("user.home") + File.separator + "namesrv" + File.separator + "kvConfig.json";
-    private String productEnvName = "center";
-    private boolean clusterTest = false;
-    private boolean orderMessageEnable = false;
+	private String				kvConfigPath		= System.getProperty("user.home") + File.separator + "namesrv"
+			+ File.separator + "kvConfig.json";
+	private String				productEnvName		= "center";
+	private boolean				clusterTest			= false;
+	private boolean				orderMessageEnable	= false;
 
-    public boolean isOrderMessageEnable() {
-        return orderMessageEnable;
-    }
+	public boolean isOrderMessageEnable() {
+		return orderMessageEnable;
+	}
 
-    public void setOrderMessageEnable(boolean orderMessageEnable) {
-        this.orderMessageEnable = orderMessageEnable;
-    }
+	public void setOrderMessageEnable(boolean orderMessageEnable) {
+		this.orderMessageEnable = orderMessageEnable;
+	}
 
-    public String getRocketmqHome() {
-        return rocketmqHome;
-    }
+	public String getRocketmqHome() {
+		return rocketmqHome;
+	}
 
+	public void setRocketmqHome(String rocketmqHome) {
+		this.rocketmqHome = rocketmqHome;
+	}
 
-    public void setRocketmqHome(String rocketmqHome) {
-        this.rocketmqHome = rocketmqHome;
-    }
+	public String getKvConfigPath() {
+		return kvConfigPath;
+	}
 
+	public void setKvConfigPath(String kvConfigPath) {
+		this.kvConfigPath = kvConfigPath;
+	}
 
-    public String getKvConfigPath() {
-        return kvConfigPath;
-    }
+	public String getProductEnvName() {
+		return productEnvName;
+	}
 
+	public void setProductEnvName(String productEnvName) {
+		this.productEnvName = productEnvName;
+	}
 
-    public void setKvConfigPath(String kvConfigPath) {
-        this.kvConfigPath = kvConfigPath;
-    }
+	public boolean isClusterTest() {
+		return clusterTest;
+	}
 
-
-    public String getProductEnvName() {
-        return productEnvName;
-    }
-
-
-    public void setProductEnvName(String productEnvName) {
-        this.productEnvName = productEnvName;
-    }
-
-
-    public boolean isClusterTest() {
-        return clusterTest;
-    }
-
-
-    public void setClusterTest(boolean clusterTest) {
-        this.clusterTest = clusterTest;
-    }
+	public void setClusterTest(boolean clusterTest) {
+		this.clusterTest = clusterTest;
+	}
 }

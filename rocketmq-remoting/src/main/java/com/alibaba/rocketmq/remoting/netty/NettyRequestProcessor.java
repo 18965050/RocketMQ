@@ -17,8 +17,8 @@
 package com.alibaba.rocketmq.remoting.netty;
 
 import com.alibaba.rocketmq.remoting.protocol.RemotingCommand;
-import io.netty.channel.ChannelHandlerContext;
 
+import io.netty.channel.ChannelHandlerContext;
 
 /**
  * Common remoting command processor
@@ -26,8 +26,18 @@ import io.netty.channel.ChannelHandlerContext;
  * @author shijia.wxr
  *
  */
+
+/**
+ * <pre>
+ * 请求处理器.
+ * 用于RPC数据被decode并在{@link com.alibaba.rocketmq.remoting.RPCHook#doBeforeRequest(String, RemotingCommand)}方法调用后执行
+ * </pre>
+ * 
+ * @author lvchenggang
+ *
+ */
 public interface NettyRequestProcessor {
-    RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request)
-            throws Exception;
-    boolean rejectRequest();
+	RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request) throws Exception;
+
+	boolean rejectRequest();
 }

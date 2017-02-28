@@ -16,43 +16,47 @@
  */
 package com.alibaba.rocketmq.client.impl.consumer;
 
+import org.slf4j.Logger;
+
 import com.alibaba.rocketmq.client.impl.factory.MQClientInstance;
 import com.alibaba.rocketmq.client.log.ClientLogger;
 import com.alibaba.rocketmq.common.ServiceThread;
-import org.slf4j.Logger;
-
 
 /**
  * Rebalance Service
  *
  * @author shijia.wxr
  */
+
+/**
+ * 负载均衡服务线程
+ * @author lvchenggang
+ *
+ */
 public class RebalanceService extends ServiceThread {
-    private static long WaitInterval =
-            Long.parseLong(System.getProperty(
-                    "rocketmq.client.rebalance.waitInterval", "20000"));
-    private final Logger log = ClientLogger.getLog();
-    private final MQClientInstance mqClientFactory;
+	private static long				WaitInterval	= Long
+			.parseLong(System.getProperty("rocketmq.client.rebalance.waitInterval", "20000"));
+	private final Logger			log				= ClientLogger.getLog();
+	private final MQClientInstance	mqClientFactory;
 
-    public RebalanceService(MQClientInstance mqClientFactory) {
-        this.mqClientFactory = mqClientFactory;
-    }
+	public RebalanceService(MQClientInstance mqClientFactory) {
+		this.mqClientFactory = mqClientFactory;
+	}
 
-    @Override
-    public void run() {
-        log.info(this.getServiceName() + " service started");
+	@Override
+	public void run() {
+		log.info(this.getServiceName() + " service started");
 
-        while (!this.isStoped()) {
-            this.waitForRunning(WaitInterval);
-            this.mqClientFactory.doRebalance();
-        }
+		while (!this.isStoped()) {
+			this.waitForRunning(WaitInterval);
+			this.mqClientFactory.doRebalance();
+		}
 
-        log.info(this.getServiceName() + " service end");
-    }
+		log.info(this.getServiceName() + " service end");
+	}
 
-
-    @Override
-    public String getServiceName() {
-        return RebalanceService.class.getSimpleName();
-    }
+	@Override
+	public String getServiceName() {
+		return RebalanceService.class.getSimpleName();
+	}
 }

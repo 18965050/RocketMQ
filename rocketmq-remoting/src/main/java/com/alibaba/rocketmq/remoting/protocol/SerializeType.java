@@ -17,26 +17,31 @@
 
 package com.alibaba.rocketmq.remoting.protocol;
 
+/**
+ * Netty 序列化方式
+ * @author lvchenggang
+ *
+ */
 public enum SerializeType {
-    JSON((byte) 0),
-    ROCKETMQ((byte) 1);
+	JSON((byte) 0),
+	ROCKETMQ((byte) 1);
 
-    private byte code;
+	private byte code;
 
-    SerializeType(byte code) {
-        this.code = code;
-    }
+	SerializeType(byte code) {
+		this.code = code;
+	}
 
-    public static SerializeType valueOf(byte code) {
-        for (SerializeType serializeType : SerializeType.values()) {
-            if (serializeType.getCode() == code) {
-                return serializeType;
-            }
-        }
-        return null;
-    }
+	public static SerializeType valueOf(byte code) {
+		for (SerializeType serializeType : SerializeType.values()) {
+			if (serializeType.getCode() == code) {
+				return serializeType;
+			}
+		}
+		return null;
+	}
 
-    public byte getCode() {
-        return code;
-    }
+	public byte getCode() {
+		return code;
+	}
 }

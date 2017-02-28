@@ -16,6 +16,10 @@
  */
 package com.alibaba.rocketmq.example.quickstart;
 
+import java.util.List;
+
+import org.apache.commons.collections.CollectionUtils;
+
 import com.alibaba.rocketmq.client.consumer.DefaultMQPushConsumer;
 import com.alibaba.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
 import com.alibaba.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
@@ -24,29 +28,38 @@ import com.alibaba.rocketmq.client.exception.MQClientException;
 import com.alibaba.rocketmq.common.consumer.ConsumeFromWhere;
 import com.alibaba.rocketmq.common.message.MessageExt;
 
-import java.util.List;
-
 public class Consumer {
 
-    public static void main(String[] args) throws InterruptedException, MQClientException {
-        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("please_rename_unique_group_name_4");
+	public static void main(String[] args) throws InterruptedException, MQClientException {
+		DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("simpleConsumer");
 
-        consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
+		consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
 
-        consumer.subscribe("TopicTest", "*");
+		consumer.setNamesrvAddr("localhost:9876");
 
-        consumer.registerMessageListener(new MessageListenerConcurrently() {
+		consumer.subscribe("SimpleTopic", "*");
 
-            @Override
-            public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs,
-                                                            ConsumeConcurrentlyContext context) {
-                System.out.println(Thread.currentThread().getName() + " Receive New Messages: " + msgs);
-                return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
-            }
-        });
+		consumer.registerMessageListener(new MessageListenerConcurrently() {
 
-        consumer.start();
+			@Override
+			public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext context) {
+				// System.out.println(Thread.currentThread().getName() + " Receive New Messages: " + msgs);
+				if (CollectionUtils.isNotEmpty(msgs)) {
+					for (MessageExt msg : msgs) {
+						try {
+							System.out.println(new String(msg.getBody(), "UTF-8"));
+						} catch (Exception e) {
+							// ignore
+						}
 
-        System.out.println("Consumer Started.");
-    }
+					}
+				}
+				return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+			}
+		});
+
+		consumer.start();
+
+		System.out.println("Consumer Started.");
+	}
 }

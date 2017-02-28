@@ -16,6 +16,12 @@
  */
 package com.alibaba.rocketmq.client.impl;
 
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.slf4j.Logger;
+
 import com.alibaba.rocketmq.client.impl.factory.MQClientInstance;
 import com.alibaba.rocketmq.client.impl.producer.MQProducerInner;
 import com.alibaba.rocketmq.client.log.ClientLogger;
@@ -30,171 +36,185 @@ import com.alibaba.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
 import com.alibaba.rocketmq.common.protocol.body.ConsumerRunningInfo;
 import com.alibaba.rocketmq.common.protocol.body.GetConsumerStatusBody;
 import com.alibaba.rocketmq.common.protocol.body.ResetOffsetBody;
-import com.alibaba.rocketmq.common.protocol.header.*;
+import com.alibaba.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
+import com.alibaba.rocketmq.common.protocol.header.ConsumeMessageDirectlyResultRequestHeader;
+import com.alibaba.rocketmq.common.protocol.header.GetConsumerRunningInfoRequestHeader;
+import com.alibaba.rocketmq.common.protocol.header.GetConsumerStatusRequestHeader;
+import com.alibaba.rocketmq.common.protocol.header.NotifyConsumerIdsChangedRequestHeader;
+import com.alibaba.rocketmq.common.protocol.header.ResetOffsetRequestHeader;
 import com.alibaba.rocketmq.remoting.common.RemotingHelper;
 import com.alibaba.rocketmq.remoting.exception.RemotingCommandException;
 import com.alibaba.rocketmq.remoting.netty.NettyRequestProcessor;
 import com.alibaba.rocketmq.remoting.protocol.RemotingCommand;
+
 import io.netty.channel.ChannelHandlerContext;
-import org.slf4j.Logger;
-
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-
 
 /**
  * @author shijia.wxr
  */
+
+/**
+ * client端的请求处理器
+ * @author lvchenggang
+ *
+ */
 public class ClientRemotingProcessor implements NettyRequestProcessor {
-    private final Logger log = ClientLogger.getLog();
-    private final MQClientInstance mqClientFactory;
+	private final Logger			log	= ClientLogger.getLog();
+	private final MQClientInstance	mqClientFactory;
 
+	public ClientRemotingProcessor(final MQClientInstance mqClientFactory) {
+		this.mqClientFactory = mqClientFactory;
+	}
 
-    public ClientRemotingProcessor(final MQClientInstance mqClientFactory) {
-        this.mqClientFactory = mqClientFactory;
-    }
+	@Override
+	public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request)
+			throws RemotingCommandException {
+		switch (request.getCode()) {
+		case RequestCode.CHECK_TRANSACTION_STATE:
+			return this.checkTransactionState(ctx, request);
+		case RequestCode.NOTIFY_CONSUMER_IDS_CHANGED:
+			return this.notifyConsumerIdsChanged(ctx, request);
+		case RequestCode.RESET_CONSUMER_CLIENT_OFFSET:
+			return this.resetOffset(ctx, request);
+		case RequestCode.GET_CONSUMER_STATUS_FROM_CLIENT:
+			return this.getConsumeStatus(ctx, request);
 
+		case RequestCode.GET_CONSUMER_RUNNING_INFO:
+			return this.getConsumerRunningInfo(ctx, request);
 
-    @Override
-    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
-        switch (request.getCode()) {
-            case RequestCode.CHECK_TRANSACTION_STATE:
-                return this.checkTransactionState(ctx, request);
-            case RequestCode.NOTIFY_CONSUMER_IDS_CHANGED:
-                return this.notifyConsumerIdsChanged(ctx, request);
-            case RequestCode.RESET_CONSUMER_CLIENT_OFFSET:
-                return this.resetOffset(ctx, request);
-            case RequestCode.GET_CONSUMER_STATUS_FROM_CLIENT:
-                return this.getConsumeStatus(ctx, request);
+		case RequestCode.CONSUME_MESSAGE_DIRECTLY:
+			return this.consumeMessageDirectly(ctx, request);
+		default:
+			break;
+		}
+		return null;
+	}
 
-            case RequestCode.GET_CONSUMER_RUNNING_INFO:
-                return this.getConsumerRunningInfo(ctx, request);
+	@Override
+	public boolean rejectRequest() {
+		return false;
+	}
 
-            case RequestCode.CONSUME_MESSAGE_DIRECTLY:
-                return this.consumeMessageDirectly(ctx, request);
-            default:
-                break;
-        }
-        return null;
-    }
+	public RemotingCommand checkTransactionState(ChannelHandlerContext ctx, RemotingCommand request)
+			throws RemotingCommandException {
+		final CheckTransactionStateRequestHeader requestHeader = (CheckTransactionStateRequestHeader) request
+				.decodeCommandCustomHeader(CheckTransactionStateRequestHeader.class);
+		final ByteBuffer byteBuffer = ByteBuffer.wrap(request.getBody());
+		final MessageExt messageExt = MessageDecoder.decode(byteBuffer);
+		if (messageExt != null) {
+			final String group = messageExt.getProperty(MessageConst.PROPERTY_PRODUCER_GROUP);
+			if (group != null) {
+				MQProducerInner producer = this.mqClientFactory.selectProducer(group);
+				if (producer != null) {
+					final String addr = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
+					producer.checkTransactionState(addr, messageExt, requestHeader);
+				} else {
+					log.debug("checkTransactionState, pick producer by group[{}] failed", group);
+				}
+			} else {
+				log.warn("checkTransactionState, pick producer group failed");
+			}
+		} else {
+			log.warn("checkTransactionState, decode message failed");
+		}
 
-    @Override
-    public boolean rejectRequest() {
-        return false;
-    }
+		return null;
+	}
 
-    public RemotingCommand checkTransactionState(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
-        final CheckTransactionStateRequestHeader requestHeader =
-                (CheckTransactionStateRequestHeader) request.decodeCommandCustomHeader(CheckTransactionStateRequestHeader.class);
-        final ByteBuffer byteBuffer = ByteBuffer.wrap(request.getBody());
-        final MessageExt messageExt = MessageDecoder.decode(byteBuffer);
-        if (messageExt != null) {
-            final String group = messageExt.getProperty(MessageConst.PROPERTY_PRODUCER_GROUP);
-            if (group != null) {
-                MQProducerInner producer = this.mqClientFactory.selectProducer(group);
-                if (producer != null) {
-                    final String addr = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
-                    producer.checkTransactionState(addr, messageExt, requestHeader);
-                } else {
-                    log.debug("checkTransactionState, pick producer by group[{}] failed", group);
-                }
-            } else {
-                log.warn("checkTransactionState, pick producer group failed");
-            }
-        } else {
-            log.warn("checkTransactionState, decode message failed");
-        }
+	public RemotingCommand notifyConsumerIdsChanged(ChannelHandlerContext ctx, RemotingCommand request)
+			throws RemotingCommandException {
+		try {
+			final NotifyConsumerIdsChangedRequestHeader requestHeader = (NotifyConsumerIdsChangedRequestHeader) request
+					.decodeCommandCustomHeader(NotifyConsumerIdsChangedRequestHeader.class);
+			log.info("receive broker's notification[{}], the consumer group: {} changed, rebalance immediately", //
+					RemotingHelper.parseChannelRemoteAddr(ctx.channel()), //
+					requestHeader.getConsumerGroup());
+			this.mqClientFactory.rebalanceImmediately();
+		} catch (Exception e) {
+			log.error("notifyConsumerIdsChanged exception", RemotingHelper.exceptionSimpleDesc(e));
+		}
+		return null;
+	}
 
-        return null;
-    }
+	public RemotingCommand resetOffset(ChannelHandlerContext ctx, RemotingCommand request)
+			throws RemotingCommandException {
+		final ResetOffsetRequestHeader requestHeader = (ResetOffsetRequestHeader) request
+				.decodeCommandCustomHeader(ResetOffsetRequestHeader.class);
+		log.info("invoke reset offset operation from broker. brokerAddr={}, topic={}, group={}, timestamp={}",
+				new Object[] { RemotingHelper.parseChannelRemoteAddr(ctx.channel()), requestHeader.getTopic(),
+						requestHeader.getGroup(), requestHeader.getTimestamp() });
+		Map<MessageQueue, Long> offsetTable = new HashMap<MessageQueue, Long>();
+		if (request.getBody() != null) {
+			ResetOffsetBody body = ResetOffsetBody.decode(request.getBody(), ResetOffsetBody.class);
+			offsetTable = body.getOffsetTable();
+		}
+		this.mqClientFactory.resetOffset(requestHeader.getTopic(), requestHeader.getGroup(), offsetTable);
+		return null;
+	}
 
-    public RemotingCommand notifyConsumerIdsChanged(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
-        try {
-            final NotifyConsumerIdsChangedRequestHeader requestHeader =
-                    (NotifyConsumerIdsChangedRequestHeader) request.decodeCommandCustomHeader(NotifyConsumerIdsChangedRequestHeader.class);
-            log.info("receive broker's notification[{}], the consumer group: {} changed, rebalance immediately",//
-                    RemotingHelper.parseChannelRemoteAddr(ctx.channel()),//
-                    requestHeader.getConsumerGroup());
-            this.mqClientFactory.rebalanceImmediately();
-        } catch (Exception e) {
-            log.error("notifyConsumerIdsChanged exception", RemotingHelper.exceptionSimpleDesc(e));
-        }
-        return null;
-    }
+	@Deprecated
+	public RemotingCommand getConsumeStatus(ChannelHandlerContext ctx, RemotingCommand request)
+			throws RemotingCommandException {
+		final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+		final GetConsumerStatusRequestHeader requestHeader = (GetConsumerStatusRequestHeader) request
+				.decodeCommandCustomHeader(GetConsumerStatusRequestHeader.class);
 
-    public RemotingCommand resetOffset(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
-        final ResetOffsetRequestHeader requestHeader =
-                (ResetOffsetRequestHeader) request.decodeCommandCustomHeader(ResetOffsetRequestHeader.class);
-        log.info("invoke reset offset operation from broker. brokerAddr={}, topic={}, group={}, timestamp={}",
-                new Object[]{RemotingHelper.parseChannelRemoteAddr(ctx.channel()), requestHeader.getTopic(), requestHeader.getGroup(),
-                        requestHeader.getTimestamp()});
-        Map<MessageQueue, Long> offsetTable = new HashMap<MessageQueue, Long>();
-        if (request.getBody() != null) {
-            ResetOffsetBody body = ResetOffsetBody.decode(request.getBody(), ResetOffsetBody.class);
-            offsetTable = body.getOffsetTable();
-        }
-        this.mqClientFactory.resetOffset(requestHeader.getTopic(), requestHeader.getGroup(), offsetTable);
-        return null;
-    }
+		Map<MessageQueue, Long> offsetTable = this.mqClientFactory.getConsumerStatus(requestHeader.getTopic(),
+				requestHeader.getGroup());
+		GetConsumerStatusBody body = new GetConsumerStatusBody();
+		body.setMessageQueueTable(offsetTable);
+		response.setBody(body.encode());
+		response.setCode(ResponseCode.SUCCESS);
+		return response;
+	}
 
-    @Deprecated
-    public RemotingCommand getConsumeStatus(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
-        final GetConsumerStatusRequestHeader requestHeader =
-                (GetConsumerStatusRequestHeader) request.decodeCommandCustomHeader(GetConsumerStatusRequestHeader.class);
+	private RemotingCommand getConsumerRunningInfo(ChannelHandlerContext ctx, RemotingCommand request)
+			throws RemotingCommandException {
+		final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+		final GetConsumerRunningInfoRequestHeader requestHeader = (GetConsumerRunningInfoRequestHeader) request
+				.decodeCommandCustomHeader(GetConsumerRunningInfoRequestHeader.class);
 
-        Map<MessageQueue, Long> offsetTable = this.mqClientFactory.getConsumerStatus(requestHeader.getTopic(), requestHeader.getGroup());
-        GetConsumerStatusBody body = new GetConsumerStatusBody();
-        body.setMessageQueueTable(offsetTable);
-        response.setBody(body.encode());
-        response.setCode(ResponseCode.SUCCESS);
-        return response;
-    }
+		ConsumerRunningInfo consumerRunningInfo = this.mqClientFactory
+				.consumerRunningInfo(requestHeader.getConsumerGroup());
+		if (null != consumerRunningInfo) {
+			if (requestHeader.isJstackEnable()) {
+				Map<Thread, StackTraceElement[]> map = Thread.getAllStackTraces();
+				consumerRunningInfo.setStackTraceElementMap(map);
+				String jstack = UtilAll.jstack(map);
+				consumerRunningInfo.setJstack(jstack);
+			}
 
-    private RemotingCommand getConsumerRunningInfo(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
-        final GetConsumerRunningInfoRequestHeader requestHeader =
-                (GetConsumerRunningInfoRequestHeader) request.decodeCommandCustomHeader(GetConsumerRunningInfoRequestHeader.class);
+			response.setCode(ResponseCode.SUCCESS);
+			response.setBody(consumerRunningInfo.encode());
+		} else {
+			response.setCode(ResponseCode.SYSTEM_ERROR);
+			response.setRemark(String.format("The Consumer Group <%s> not exist in this consumer",
+					requestHeader.getConsumerGroup()));
+		}
 
-        ConsumerRunningInfo consumerRunningInfo = this.mqClientFactory.consumerRunningInfo(requestHeader.getConsumerGroup());
-        if (null != consumerRunningInfo) {
-            if (requestHeader.isJstackEnable()) {
-                Map<Thread, StackTraceElement[]> map = Thread.getAllStackTraces();
-                consumerRunningInfo.setStackTraceElementMap(map);
-                String jstack = UtilAll.jstack(map);
-                consumerRunningInfo.setJstack(jstack);
-            }
+		return response;
+	}
 
-            response.setCode(ResponseCode.SUCCESS);
-            response.setBody(consumerRunningInfo.encode());
-        } else {
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark(String.format("The Consumer Group <%s> not exist in this consumer", requestHeader.getConsumerGroup()));
-        }
+	private RemotingCommand consumeMessageDirectly(ChannelHandlerContext ctx, RemotingCommand request)
+			throws RemotingCommandException {
+		final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+		final ConsumeMessageDirectlyResultRequestHeader requestHeader = (ConsumeMessageDirectlyResultRequestHeader) request
+				.decodeCommandCustomHeader(ConsumeMessageDirectlyResultRequestHeader.class);
 
-        return response;
-    }
+		final MessageExt msg = MessageDecoder.decode(ByteBuffer.wrap(request.getBody()));
 
-    private RemotingCommand consumeMessageDirectly(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
-        final ConsumeMessageDirectlyResultRequestHeader requestHeader =
-                (ConsumeMessageDirectlyResultRequestHeader) request
-                        .decodeCommandCustomHeader(ConsumeMessageDirectlyResultRequestHeader.class);
+		ConsumeMessageDirectlyResult result = this.mqClientFactory.consumeMessageDirectly(msg,
+				requestHeader.getConsumerGroup(), requestHeader.getBrokerName());
 
-        final MessageExt msg = MessageDecoder.decode(ByteBuffer.wrap(request.getBody()));
+		if (null != result) {
+			response.setCode(ResponseCode.SUCCESS);
+			response.setBody(result.encode());
+		} else {
+			response.setCode(ResponseCode.SYSTEM_ERROR);
+			response.setRemark(String.format("The Consumer Group <%s> not exist in this consumer",
+					requestHeader.getConsumerGroup()));
+		}
 
-        ConsumeMessageDirectlyResult result =
-                this.mqClientFactory.consumeMessageDirectly(msg, requestHeader.getConsumerGroup(), requestHeader.getBrokerName());
-
-        if (null != result) {
-            response.setCode(ResponseCode.SUCCESS);
-            response.setBody(result.encode());
-        } else {
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark(String.format("The Consumer Group <%s> not exist in this consumer", requestHeader.getConsumerGroup()));
-        }
-
-        return response;
-    }
+		return response;
+	}
 }
