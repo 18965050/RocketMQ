@@ -76,7 +76,11 @@ import ch.qos.logback.core.joran.spi.JoranException;
  */
 
 /**
+ * <pre>
  * mqadmin 启动类
+ * 需要在namesrv和broker启动情况下才能用
+ * </pre>
+ * 
  * @author lvchenggang
  *
  */

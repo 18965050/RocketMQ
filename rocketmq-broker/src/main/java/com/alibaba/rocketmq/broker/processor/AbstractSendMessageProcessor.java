@@ -16,6 +16,15 @@
  */
 package com.alibaba.rocketmq.broker.processor;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.alibaba.rocketmq.broker.BrokerController;
 import com.alibaba.rocketmq.broker.mqtrace.SendMessageContext;
 import com.alibaba.rocketmq.broker.mqtrace.SendMessageHook;
@@ -42,290 +51,268 @@ import com.alibaba.rocketmq.remoting.exception.RemotingCommandException;
 import com.alibaba.rocketmq.remoting.netty.NettyRequestProcessor;
 import com.alibaba.rocketmq.remoting.protocol.RemotingCommand;
 import com.alibaba.rocketmq.store.MessageExtBrokerInner;
+
 import io.netty.channel.ChannelHandlerContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-
 
 /**
  * @author shijia.wxr
  */
 public abstract class AbstractSendMessageProcessor implements NettyRequestProcessor {
-    protected static final Logger log = LoggerFactory.getLogger(LoggerName.BrokerLoggerName);
+	protected static final Logger log = LoggerFactory.getLogger(LoggerName.BrokerLoggerName);
 
-    protected final static int DLQ_NUMS_PER_GROUP = 1;
-    protected final BrokerController brokerController;
-    protected final Random random = new Random(System.currentTimeMillis());
-    protected final SocketAddress storeHost;
-    private List<SendMessageHook> sendMessageHookList;
+	protected final static int DLQ_NUMS_PER_GROUP = 1;
+	protected final BrokerController brokerController;
+	protected final Random random = new Random(System.currentTimeMillis());
+	protected final SocketAddress storeHost;
+	private List<SendMessageHook> sendMessageHookList;
 
+	public AbstractSendMessageProcessor(final BrokerController brokerController) {
+		this.brokerController = brokerController;
+		this.storeHost = new InetSocketAddress(brokerController.getBrokerConfig().getBrokerIP1(),
+				brokerController.getNettyServerConfig().getListenPort());
+	}
 
-    public AbstractSendMessageProcessor(final BrokerController brokerController) {
-        this.brokerController = brokerController;
-        this.storeHost =
-                new InetSocketAddress(brokerController.getBrokerConfig().getBrokerIP1(), brokerController
-                        .getNettyServerConfig().getListenPort());
-    }
+	protected SendMessageContext buildMsgContext(ChannelHandlerContext ctx, SendMessageRequestHeader requestHeader) {
+		if (!this.hasSendMessageHook()) {
+			return null;
+		}
+		SendMessageContext mqtraceContext;
+		mqtraceContext = new SendMessageContext();
+		mqtraceContext.setProducerGroup(requestHeader.getProducerGroup());
+		mqtraceContext.setTopic(requestHeader.getTopic());
+		mqtraceContext.setMsgProps(requestHeader.getProperties());
+		mqtraceContext.setBornHost(RemotingHelper.parseChannelRemoteAddr(ctx.channel()));
+		mqtraceContext.setBrokerAddr(this.brokerController.getBrokerAddr());
+		mqtraceContext.setBrokerRegionId(this.brokerController.getBrokerConfig().getRegionId());
+		mqtraceContext.setBornTimeStamp(requestHeader.getBornTimestamp());
 
-    protected SendMessageContext buildMsgContext(ChannelHandlerContext ctx,
-                                                 SendMessageRequestHeader requestHeader) {
-        if (!this.hasSendMessageHook()) {
-            return null;
-        }
-        SendMessageContext mqtraceContext;
-        mqtraceContext = new SendMessageContext();
-        mqtraceContext.setProducerGroup(requestHeader.getProducerGroup());
-        mqtraceContext.setTopic(requestHeader.getTopic());
-        mqtraceContext.setMsgProps(requestHeader.getProperties());
-        mqtraceContext.setBornHost(RemotingHelper.parseChannelRemoteAddr(ctx.channel()));
-        mqtraceContext.setBrokerAddr(this.brokerController.getBrokerAddr());
-        mqtraceContext.setBrokerRegionId(this.brokerController.getBrokerConfig().getRegionId());
-        mqtraceContext.setBornTimeStamp(requestHeader.getBornTimestamp());
+		Map<String, String> properties = MessageDecoder.string2messageProperties(requestHeader.getProperties());
+		String uniqueKey = properties.get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
+		properties.put(MessageConst.PROPERTY_MSG_REGION, this.brokerController.getBrokerConfig().getRegionId());
+		requestHeader.setProperties(MessageDecoder.messageProperties2String(properties));
 
-        Map<String, String> properties = MessageDecoder.string2messageProperties(requestHeader.getProperties());
-        String uniqueKey = properties.get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
-        properties.put(MessageConst.PROPERTY_MSG_REGION, this.brokerController.getBrokerConfig().getRegionId());
-        requestHeader.setProperties(MessageDecoder.messageProperties2String(properties));
+		if (uniqueKey == null) {
+			uniqueKey = "";
+		}
+		mqtraceContext.setMsgUniqueKey(uniqueKey);
+		return mqtraceContext;
+	}
 
+	public boolean hasSendMessageHook() {
+		return sendMessageHookList != null && !this.sendMessageHookList.isEmpty();
+	}
 
-        if (uniqueKey == null) {
-            uniqueKey = "";
-        }
-        mqtraceContext.setMsgUniqueKey(uniqueKey);
-        return mqtraceContext;
-    }
+	protected MessageExtBrokerInner buildInnerMsg(final ChannelHandlerContext ctx,
+			final SendMessageRequestHeader requestHeader, final byte[] body, TopicConfig topicConfig) {
+		int queueIdInt = requestHeader.getQueueId();
+		if (queueIdInt < 0) {
+			queueIdInt = Math.abs(this.random.nextInt() % 99999999) % topicConfig.getWriteQueueNums();
+		}
+		int sysFlag = requestHeader.getSysFlag();
 
-    public boolean hasSendMessageHook() {
-        return sendMessageHookList != null && !this.sendMessageHookList.isEmpty();
-    }
+		if (TopicFilterType.MULTI_TAG == topicConfig.getTopicFilterType()) {
+			sysFlag |= MessageSysFlag.MultiTagsFlag;
+		}
 
-    protected MessageExtBrokerInner buildInnerMsg(final ChannelHandlerContext ctx,
-                                                  final SendMessageRequestHeader requestHeader, final byte[] body, TopicConfig topicConfig) {
-        int queueIdInt = requestHeader.getQueueId();
-        if (queueIdInt < 0) {
-            queueIdInt = Math.abs(this.random.nextInt() % 99999999) % topicConfig.getWriteQueueNums();
-        }
-        int sysFlag = requestHeader.getSysFlag();
+		MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
+		msgInner.setTopic(requestHeader.getTopic());
+		msgInner.setBody(body);
+		msgInner.setFlag(requestHeader.getFlag());
+		MessageAccessor.setProperties(msgInner, MessageDecoder.string2messageProperties(requestHeader.getProperties()));
+		msgInner.setPropertiesString(requestHeader.getProperties());
+		msgInner.setTagsCode(
+				MessageExtBrokerInner.tagsString2tagsCode(topicConfig.getTopicFilterType(), msgInner.getTags()));
 
-        if (TopicFilterType.MULTI_TAG == topicConfig.getTopicFilterType()) {
-            sysFlag |= MessageSysFlag.MultiTagsFlag;
-        }
+		msgInner.setQueueId(queueIdInt);
+		msgInner.setSysFlag(sysFlag);
+		msgInner.setBornTimestamp(requestHeader.getBornTimestamp());
+		msgInner.setBornHost(ctx.channel().remoteAddress());
+		msgInner.setStoreHost(this.getStoreHost());
+		msgInner.setReconsumeTimes(requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes());
+		return msgInner;
+	}
 
-        MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
-        msgInner.setTopic(requestHeader.getTopic());
-        msgInner.setBody(body);
-        msgInner.setFlag(requestHeader.getFlag());
-        MessageAccessor.setProperties(msgInner,
-                MessageDecoder.string2messageProperties(requestHeader.getProperties()));
-        msgInner.setPropertiesString(requestHeader.getProperties());
-        msgInner.setTagsCode(MessageExtBrokerInner.tagsString2tagsCode(topicConfig.getTopicFilterType(),
-                msgInner.getTags()));
+	public SocketAddress getStoreHost() {
+		return storeHost;
+	}
 
-        msgInner.setQueueId(queueIdInt);
-        msgInner.setSysFlag(sysFlag);
-        msgInner.setBornTimestamp(requestHeader.getBornTimestamp());
-        msgInner.setBornHost(ctx.channel().remoteAddress());
-        msgInner.setStoreHost(this.getStoreHost());
-        msgInner.setReconsumeTimes(requestHeader.getReconsumeTimes() == null ? 0 : requestHeader
-                .getReconsumeTimes());
-        return msgInner;
-    }
+	protected RemotingCommand msgContentCheck(final ChannelHandlerContext ctx,
+			final SendMessageRequestHeader requestHeader, RemotingCommand request, final RemotingCommand response) {
+		if (requestHeader.getTopic().length() > Byte.MAX_VALUE) {
+			log.warn("putMessage message topic length too long " + requestHeader.getTopic().length());
+			response.setCode(ResponseCode.MESSAGE_ILLEGAL);
+			return response;
+		}
+		if (requestHeader.getProperties() != null && requestHeader.getProperties().length() > Short.MAX_VALUE) {
+			log.warn("putMessage message properties length too long " + requestHeader.getProperties().length());
+			response.setCode(ResponseCode.MESSAGE_ILLEGAL);
+			return response;
+		}
+		if (request.getBody().length > DBMsgConstants.maxBodySize) {
+			log.warn(" topic {}  msg body size {}  from {}", requestHeader.getTopic(), request.getBody().length,
+					ChannelUtil.getRemoteIp(ctx.channel()));
+			response.setRemark("msg body must be less 64KB");
+			response.setCode(ResponseCode.MESSAGE_ILLEGAL);
+			return response;
+		}
+		return response;
+	}
 
-    public SocketAddress getStoreHost() {
-        return storeHost;
-    }
+	protected RemotingCommand msgCheck(final ChannelHandlerContext ctx, final SendMessageRequestHeader requestHeader,
+			final RemotingCommand response) {
+		if (!PermName.isWriteable(this.brokerController.getBrokerConfig().getBrokerPermission())
+				&& this.brokerController.getTopicConfigManager().isOrderTopic(requestHeader.getTopic())) {
+			response.setCode(ResponseCode.NO_PERMISSION);
+			response.setRemark("the broker[" + this.brokerController.getBrokerConfig().getBrokerIP1()
+					+ "] sending message is forbidden");
+			return response;
+		}
+		if (!this.brokerController.getTopicConfigManager().isTopicCanSendMessage(requestHeader.getTopic())) {
+			String errorMsg = "the topic[" + requestHeader.getTopic() + "] is conflict with system reserved words.";
+			log.warn(errorMsg);
+			response.setCode(ResponseCode.SYSTEM_ERROR);
+			response.setRemark(errorMsg);
+			return response;
+		}
 
-    protected RemotingCommand msgContentCheck(final ChannelHandlerContext ctx,
-                                              final SendMessageRequestHeader requestHeader, RemotingCommand request,
-                                              final RemotingCommand response) {
-        if (requestHeader.getTopic().length() > Byte.MAX_VALUE) {
-            log.warn("putMessage message topic length too long " + requestHeader.getTopic().length());
-            response.setCode(ResponseCode.MESSAGE_ILLEGAL);
-            return response;
-        }
-        if (requestHeader.getProperties() != null && requestHeader.getProperties().length() > Short.MAX_VALUE) {
-            log.warn("putMessage message properties length too long "
-                    + requestHeader.getProperties().length());
-            response.setCode(ResponseCode.MESSAGE_ILLEGAL);
-            return response;
-        }
-        if (request.getBody().length > DBMsgConstants.maxBodySize) {
-            log.warn(" topic {}  msg body size {}  from {}", requestHeader.getTopic(),
-                    request.getBody().length, ChannelUtil.getRemoteIp(ctx.channel()));
-            response.setRemark("msg body must be less 64KB");
-            response.setCode(ResponseCode.MESSAGE_ILLEGAL);
-            return response;
-        }
-        return response;
-    }
+		TopicConfig topicConfig = this.brokerController.getTopicConfigManager()
+				.selectTopicConfig(requestHeader.getTopic());
+		if (null == topicConfig) {
+			int topicSysFlag = 0;
+			if (requestHeader.isUnitMode()) {
+				if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+					topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
+				} else {
+					topicSysFlag = TopicSysFlag.buildSysFlag(true, false);
+				}
+			}
 
-    protected RemotingCommand msgCheck(final ChannelHandlerContext ctx,
-                                       final SendMessageRequestHeader requestHeader, final RemotingCommand response) {
-        if (!PermName.isWriteable(this.brokerController.getBrokerConfig().getBrokerPermission())
-                && this.brokerController.getTopicConfigManager().isOrderTopic(requestHeader.getTopic())) {
-            response.setCode(ResponseCode.NO_PERMISSION);
-            response.setRemark("the broker[" + this.brokerController.getBrokerConfig().getBrokerIP1()
-                    + "] sending message is forbidden");
-            return response;
-        }
-        if (!this.brokerController.getTopicConfigManager().isTopicCanSendMessage(requestHeader.getTopic())) {
-            String errorMsg =
-                    "the topic[" + requestHeader.getTopic() + "] is conflict with system reserved words.";
-            log.warn(errorMsg);
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark(errorMsg);
-            return response;
-        }
+			log.warn(
+					"the topic " + requestHeader.getTopic() + " not exist, producer: " + ctx.channel().remoteAddress());
+			topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageMethod(//
+					requestHeader.getTopic(), //
+					requestHeader.getDefaultTopic(), //
+					RemotingHelper.parseChannelRemoteAddr(ctx.channel()), //
+					requestHeader.getDefaultTopicQueueNums(), topicSysFlag);
 
-        TopicConfig topicConfig =
-                this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
-        if (null == topicConfig) {
-            int topicSysFlag = 0;
-            if (requestHeader.isUnitMode()) {
-                if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
-                    topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
-                } else {
-                    topicSysFlag = TopicSysFlag.buildSysFlag(true, false);
-                }
-            }
+			if (null == topicConfig) {
+				if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+					topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
+							requestHeader.getTopic(), 1, PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
+				}
+			}
 
-            log.warn("the topic " + requestHeader.getTopic() + " not exist, producer: "
-                    + ctx.channel().remoteAddress());
-            topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageMethod(//
-                    requestHeader.getTopic(), //
-                    requestHeader.getDefaultTopic(), //
-                    RemotingHelper.parseChannelRemoteAddr(ctx.channel()), //
-                    requestHeader.getDefaultTopicQueueNums(), topicSysFlag);
+			if (null == topicConfig) {
+				response.setCode(ResponseCode.TOPIC_NOT_EXIST);
+				response.setRemark("topic[" + requestHeader.getTopic() + "] not exist, apply first please!"
+						+ FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
+				return response;
+			}
+		}
 
-            if (null == topicConfig) {
-                if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
-                    topicConfig =
-                            this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
-                                    requestHeader.getTopic(), 1, PermName.PERM_WRITE | PermName.PERM_READ,
-                                    topicSysFlag);
-                }
-            }
+		int queueIdInt = requestHeader.getQueueId();
+		int idValid = Math.max(topicConfig.getWriteQueueNums(), topicConfig.getReadQueueNums());
+		if (queueIdInt >= idValid) {
+			String errorInfo = String.format("request queueId[%d] is illagal, %s Producer: %s", //
+					queueIdInt, //
+					topicConfig.toString(), //
+					RemotingHelper.parseChannelRemoteAddr(ctx.channel()));
 
-            if (null == topicConfig) {
-                response.setCode(ResponseCode.TOPIC_NOT_EXIST);
-                response.setRemark("topic[" + requestHeader.getTopic() + "] not exist, apply first please!"
-                        + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
-                return response;
-            }
-        }
+			log.warn(errorInfo);
+			response.setCode(ResponseCode.SYSTEM_ERROR);
+			response.setRemark(errorInfo);
 
-        int queueIdInt = requestHeader.getQueueId();
-        int idValid = Math.max(topicConfig.getWriteQueueNums(), topicConfig.getReadQueueNums());
-        if (queueIdInt >= idValid) {
-            String errorInfo = String.format("request queueId[%d] is illagal, %s Producer: %s",//
-                    queueIdInt,//
-                    topicConfig.toString(),//
-                    RemotingHelper.parseChannelRemoteAddr(ctx.channel()));
+			return response;
+		}
+		return response;
+	}
 
-            log.warn(errorInfo);
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark(errorInfo);
+	public void registerSendMessageHook(List<SendMessageHook> sendMessageHookList) {
+		this.sendMessageHookList = sendMessageHookList;
+	}
 
-            return response;
-        }
-        return response;
-    }
+	protected void doResponse(ChannelHandlerContext ctx, RemotingCommand request, final RemotingCommand response) {
+		if (!request.isOnewayRPC()) {
+			try {
+				ctx.writeAndFlush(response);
+			} catch (Throwable e) {
+				log.error("SendMessageProcessor process request over, but response failed", e);
+				log.error(request.toString());
+				log.error(response.toString());
+			}
+		}
+	}
 
-    public void registerSendMessageHook(List<SendMessageHook> sendMessageHookList) {
-        this.sendMessageHookList = sendMessageHookList;
-    }
+	public void executeSendMessageHookBefore(final ChannelHandlerContext ctx, final RemotingCommand request,
+			SendMessageContext context) {
+		if (hasSendMessageHook()) {
+			for (SendMessageHook hook : this.sendMessageHookList) {
+				try {
+					final SendMessageRequestHeader requestHeader = parseRequestHeader(request);
 
-    protected void doResponse(ChannelHandlerContext ctx, RemotingCommand request,
-                              final RemotingCommand response) {
-        if (!request.isOnewayRPC()) {
-            try {
-                ctx.writeAndFlush(response);
-            } catch (Throwable e) {
-                log.error("SendMessageProcessor process request over, but response failed", e);
-                log.error(request.toString());
-                log.error(response.toString());
-            }
-        }
-    }
+					if (null != requestHeader) {
+						context.setProducerGroup(requestHeader.getProducerGroup());
+						context.setTopic(requestHeader.getTopic());
+						context.setBodyLength(request.getBody().length);
+						context.setMsgProps(requestHeader.getProperties());
+						context.setBornHost(RemotingHelper.parseChannelRemoteAddr(ctx.channel()));
+						context.setBrokerAddr(this.brokerController.getBrokerAddr());
+						context.setQueueId(requestHeader.getQueueId());
+					}
 
-    public void executeSendMessageHookBefore(final ChannelHandlerContext ctx, final RemotingCommand request,
-                                             SendMessageContext context) {
-        if (hasSendMessageHook()) {
-            for (SendMessageHook hook : this.sendMessageHookList) {
-                try {
-                    final SendMessageRequestHeader requestHeader = parseRequestHeader(request);
+					hook.sendMessageBefore(context);
+					requestHeader.setProperties(context.getMsgProps());
+				} catch (Throwable e) {
+				}
+			}
+		}
+	}
 
-                    if (null != requestHeader) {
-                        context.setProducerGroup(requestHeader.getProducerGroup());
-                        context.setTopic(requestHeader.getTopic());
-                        context.setBodyLength(request.getBody().length);
-                        context.setMsgProps(requestHeader.getProperties());
-                        context.setBornHost(RemotingHelper.parseChannelRemoteAddr(ctx.channel()));
-                        context.setBrokerAddr(this.brokerController.getBrokerAddr());
-                        context.setQueueId(requestHeader.getQueueId());
-                    }
+	protected SendMessageRequestHeader parseRequestHeader(RemotingCommand request) throws RemotingCommandException {
 
-                    hook.sendMessageBefore(context);
-                    requestHeader.setProperties(context.getMsgProps());
-                } catch (Throwable e) {
-                }
-            }
-        }
-    }
+		SendMessageRequestHeaderV2 requestHeaderV2 = null;
+		SendMessageRequestHeader requestHeader = null;
+		switch (request.getCode()) {
+		case RequestCode.SEND_MESSAGE_V2:
+			requestHeaderV2 = (SendMessageRequestHeaderV2) request
+					.decodeCommandCustomHeader(SendMessageRequestHeaderV2.class);
+			// 注意这里没有break, 这样上面case流程走完就会继续走下面的case
+		case RequestCode.SEND_MESSAGE:
+			if (null == requestHeaderV2) {
+				requestHeader = (SendMessageRequestHeader) request
+						.decodeCommandCustomHeader(SendMessageRequestHeader.class);
+			} else {
+				requestHeader = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV1(requestHeaderV2);
+			}
+		default:
+			break;
+		}
+		return requestHeader;
+	}
 
-    protected SendMessageRequestHeader parseRequestHeader(RemotingCommand request)
-            throws RemotingCommandException {
+	public void executeSendMessageHookAfter(final RemotingCommand response, final SendMessageContext context) {
+		if (hasSendMessageHook()) {
+			for (SendMessageHook hook : this.sendMessageHookList) {
+				try {
+					if (response != null) {
+						final SendMessageResponseHeader responseHeader = (SendMessageResponseHeader) response
+								.readCustomHeader();
+						context.setMsgId(responseHeader.getMsgId());
+						context.setQueueId(responseHeader.getQueueId());
+						context.setQueueOffset(responseHeader.getQueueOffset());
+						context.setCode(response.getCode());
+						context.setErrorMsg(response.getRemark());
+					}
+					hook.sendMessageAfter(context);
+				} catch (Throwable e) {
 
-        SendMessageRequestHeaderV2 requestHeaderV2 = null;
-        SendMessageRequestHeader requestHeader = null;
-        switch (request.getCode()) {
-            case RequestCode.SEND_MESSAGE_V2:
-                requestHeaderV2 =
-                        (SendMessageRequestHeaderV2) request
-                                .decodeCommandCustomHeader(SendMessageRequestHeaderV2.class);
-            case RequestCode.SEND_MESSAGE:
-                if (null == requestHeaderV2) {
-                    requestHeader =
-                            (SendMessageRequestHeader) request
-                                    .decodeCommandCustomHeader(SendMessageRequestHeader.class);
-                } else {
-                    requestHeader = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV1(requestHeaderV2);
-                }
-            default:
-                break;
-        }
-        return requestHeader;
-    }
+				}
+			}
+		}
+	}
 
-    public void executeSendMessageHookAfter(final RemotingCommand response, final SendMessageContext context) {
-        if (hasSendMessageHook()) {
-            for (SendMessageHook hook : this.sendMessageHookList) {
-                try {
-                    if (response != null) {
-                        final SendMessageResponseHeader responseHeader =
-                                (SendMessageResponseHeader) response.readCustomHeader();
-                        context.setMsgId(responseHeader.getMsgId());
-                        context.setQueueId(responseHeader.getQueueId());
-                        context.setQueueOffset(responseHeader.getQueueOffset());
-                        context.setCode(response.getCode());
-                        context.setErrorMsg(response.getRemark());
-                    }
-                    hook.sendMessageAfter(context);
-                } catch (Throwable e) {
-
-                }
-            }
-        }
-    }
-
-    @Override
-    public boolean rejectRequest() {
-        return false;
-    }
+	@Override
+	public boolean rejectRequest() {
+		return false;
+	}
 }

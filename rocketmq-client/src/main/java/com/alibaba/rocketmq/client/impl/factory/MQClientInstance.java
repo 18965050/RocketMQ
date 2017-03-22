@@ -87,47 +87,42 @@ import com.alibaba.rocketmq.remoting.protocol.RemotingCommand;
 
 /**
  * Client实例类.每一个client 实例的clientId不同
+ * 
  * @author lvchenggang
- *
+ * 
  */
 public class MQClientInstance {
-	private final static long																					LockTimeoutMillis			= 3000;
-	private final Logger																						log							= ClientLogger
-			.getLog();
-	private final ClientConfig																					clientConfig;
-	private final int																							instanceIndex;
-	private final String																						clientId;
-	private final long																							bootTimestamp				= System
-			.currentTimeMillis();
-	private final ConcurrentHashMap<String/* group */, MQProducerInner>											producerTable				= new ConcurrentHashMap<String, MQProducerInner>();
-	private final ConcurrentHashMap<String/* group */, MQConsumerInner>											consumerTable				= new ConcurrentHashMap<String, MQConsumerInner>();
-	private final ConcurrentHashMap<String/* group */, MQAdminExtInner>											adminExtTable				= new ConcurrentHashMap<String, MQAdminExtInner>();
-	private final NettyClientConfig																				nettyClientConfig;
-	private final MQClientAPIImpl																				mQClientAPIImpl;
-	private final MQAdminImpl																					mQAdminImpl;
-	private final ConcurrentHashMap<String/* Topic */, TopicRouteData>											topicRouteTable				= new ConcurrentHashMap<String, TopicRouteData>();
-	private final Lock																							lockNamesrv					= new ReentrantLock();
-	private final Lock																							lockHeartbeat				= new ReentrantLock();
-	private final ConcurrentHashMap<String/* Broker Name */, HashMap<Long/* brokerId */, String/* address */>>	brokerAddrTable				= new ConcurrentHashMap<String, HashMap<Long, String>>();
-	private final ScheduledExecutorService																		scheduledExecutorService	= Executors
+	private final static long LockTimeoutMillis = 3000;
+	private final Logger log = ClientLogger.getLog();
+	private final ClientConfig clientConfig;
+	private final int instanceIndex;
+	private final String clientId;
+	private final long bootTimestamp = System.currentTimeMillis();
+	private final ConcurrentHashMap<String/* group */, MQProducerInner> producerTable = new ConcurrentHashMap<String, MQProducerInner>();
+	private final ConcurrentHashMap<String/* group */, MQConsumerInner> consumerTable = new ConcurrentHashMap<String, MQConsumerInner>();
+	private final ConcurrentHashMap<String/* group */, MQAdminExtInner> adminExtTable = new ConcurrentHashMap<String, MQAdminExtInner>();
+	private final NettyClientConfig nettyClientConfig;
+	private final MQClientAPIImpl mQClientAPIImpl;
+	private final MQAdminImpl mQAdminImpl;
+	private final ConcurrentHashMap<String/* Topic */, TopicRouteData> topicRouteTable = new ConcurrentHashMap<String, TopicRouteData>();
+	private final Lock lockNamesrv = new ReentrantLock();
+	private final Lock lockHeartbeat = new ReentrantLock();
+	private final ConcurrentHashMap<String/* Broker Name */, HashMap<Long/* brokerId */, String/* address */>> brokerAddrTable = new ConcurrentHashMap<String, HashMap<Long, String>>();
+	private final ScheduledExecutorService scheduledExecutorService = Executors
 			.newSingleThreadScheduledExecutor(new ThreadFactory() {
-																																						@Override
-																																						public Thread newThread(
-																																								Runnable r) {
-																																							return new Thread(
-																																									r,
-																																									"MQClientFactoryScheduledThread");
-																																						}
-																																					});
-	private final ClientRemotingProcessor																		clientRemotingProcessor;
-	private final PullMessageService																			pullMessageService;
-	private final RebalanceService																				rebalanceService;
-	private final DefaultMQProducer																				defaultMQProducer;
-	private final ConsumerStatsManager																			consumerStatsManager;
-	private final AtomicLong																					storeTimesTotal				= new AtomicLong(
-			0);
-	private ServiceState																						serviceState				= ServiceState.CREATE_JUST;
-	private DatagramSocket																						datagramSocket;
+				@Override
+				public Thread newThread(Runnable r) {
+					return new Thread(r, "MQClientFactoryScheduledThread");
+				}
+			});
+	private final ClientRemotingProcessor clientRemotingProcessor;
+	private final PullMessageService pullMessageService;
+	private final RebalanceService rebalanceService;
+	private final DefaultMQProducer defaultMQProducer;
+	private final ConsumerStatsManager consumerStatsManager;
+	private final AtomicLong storeTimesTotal = new AtomicLong(0);
+	private ServiceState serviceState = ServiceState.CREATE_JUST;
+	private DatagramSocket datagramSocket;
 
 	public MQClientInstance(ClientConfig clientConfig, int instanceIndex, String clientId) {
 		this(clientConfig, instanceIndex, clientId, null);
@@ -422,6 +417,10 @@ public class MQClientInstance {
 		return false;
 	}
 
+	/**
+	 * 发送producer和consumer的订阅数据,broker会判断订阅数据中的topic是否存在, 不存在情况下在对于%RETRY%开头的
+	 * TOPIC会进行创建
+	 */
 	private void sendHeartbeatToAllBroker() {
 		final HeartbeatData heartbeatData = this.prepareHeartbeatData();
 		final boolean producerEmpty = heartbeatData.getProducerDataSet().isEmpty();
@@ -1038,6 +1037,8 @@ public class MQClientInstance {
 		if (topicRouteData != null) {
 			List<BrokerData> brokers = topicRouteData.getBrokerDatas();
 			if (!brokers.isEmpty()) {
+				// 由于client会将注册信息发送给所有master broker, 因此这里只需要获取其中一个master
+				// broker地址即可
 				BrokerData bd = brokers.get(0);
 				return bd.selectBrokerAddr();
 			}

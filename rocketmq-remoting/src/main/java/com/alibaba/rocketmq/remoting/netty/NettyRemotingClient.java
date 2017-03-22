@@ -73,34 +73,32 @@ import io.netty.util.concurrent.DefaultEventExecutorGroup;
 
 /**
  * Netty Client
+ * 
  * @author lvchenggang
  *
  */
 public class NettyRemotingClient extends NettyRemotingAbstract implements RemotingClient {
-	private static final Logger											log					= LoggerFactory
-			.getLogger(RemotingHelper.RemotingLogName);
+	private static final Logger log = LoggerFactory.getLogger(RemotingHelper.RemotingLogName);
 
-	private static final long											LockTimeoutMillis	= 3000;
+	private static final long LockTimeoutMillis = 3000;
 
-	private final NettyClientConfig										nettyClientConfig;
-	private final Bootstrap												bootstrap			= new Bootstrap();
-	private final EventLoopGroup										eventLoopGroupWorker;
-	private final Lock													lockChannelTables	= new ReentrantLock();
-	private final ConcurrentHashMap<String /* addr */, ChannelWrapper>	channelTables		= new ConcurrentHashMap<String, ChannelWrapper>();
+	private final NettyClientConfig nettyClientConfig;
+	private final Bootstrap bootstrap = new Bootstrap();
+	private final EventLoopGroup eventLoopGroupWorker;
+	private final Lock lockChannelTables = new ReentrantLock();
+	private final ConcurrentHashMap<String /* addr */, ChannelWrapper> channelTables = new ConcurrentHashMap<String, ChannelWrapper>();
 
-	private final Timer													timer				= new Timer(
-			"ClientHouseKeepingService", true);
+	private final Timer timer = new Timer("ClientHouseKeepingService", true);
 
-	private final AtomicReference<List<String>>							namesrvAddrList		= new AtomicReference<List<String>>();
-	private final AtomicReference<String>								namesrvAddrChoosed	= new AtomicReference<String>();
-	private final AtomicInteger											namesrvIndex		= new AtomicInteger(
-			initValueIndex());
-	private final Lock													lockNamesrvChannel	= new ReentrantLock();
+	private final AtomicReference<List<String>> namesrvAddrList = new AtomicReference<List<String>>();
+	private final AtomicReference<String> namesrvAddrChoosed = new AtomicReference<String>();
+	private final AtomicInteger namesrvIndex = new AtomicInteger(initValueIndex());
+	private final Lock lockNamesrvChannel = new ReentrantLock();
 
-	private final ExecutorService										publicExecutor;
-	private final ChannelEventListener									channelEventListener;
-	private DefaultEventExecutorGroup									defaultEventExecutorGroup;
-	private RPCHook														rpcHook;
+	private final ExecutorService publicExecutor;
+	private final ChannelEventListener channelEventListener;
+	private DefaultEventExecutorGroup defaultEventExecutorGroup;
+	private RPCHook rpcHook;
 
 	public NettyRemotingClient(final NettyClientConfig nettyClientConfig) {
 		this(nettyClientConfig, null);
@@ -631,6 +629,15 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
 		}
 	}
 
+	/**
+	 * <pre>
+	 * Netty Client心跳检测ChannelHandler,配合IdleStateHandler使用
+	 * 用于发送自定义的事件NettyEvent
+	 * </pre>
+	 * 
+	 * @author lvchenggang
+	 *
+	 */
 	class NettyConnetManageHandler extends ChannelDuplexHandler {
 		@Override
 		public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress,

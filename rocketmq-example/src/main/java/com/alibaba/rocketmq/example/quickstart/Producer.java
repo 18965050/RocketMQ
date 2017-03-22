@@ -30,9 +30,11 @@ public class Producer {
 
 		producer.setNamesrvAddr("localhost:9876");
 
+		producer.setDefaultTopicQueueNums(1);
+
 		producer.start();
 
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < 1; i++) {
 			try {
 				Message msg = new Message("SimpleTopic", // topic
 						"TagA", // tag

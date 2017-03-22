@@ -25,12 +25,13 @@ package com.alibaba.rocketmq.remoting.netty;
 
 /**
  * netty通信配置类
+ * 
  * @author lvchenggang
  *
  */
 public class NettyServerConfig implements Cloneable {
 	// server 监听端口
-	private int		listenPort							= 8888;
+	private int listenPort = 8888;
 	/**
 	 * <pre>
 	 *  Netty Server Worker codec线程,用于:
@@ -39,7 +40,7 @@ public class NettyServerConfig implements Cloneable {
 	 *  对Request命令进行处理,并生成Response命令(对应的线程名为: RemotingExecutorThread_i)
 	 * </pre>
 	 */
-	private int		serverWorkerThreads					= 8;
+	private int serverWorkerThreads = 8;
 
 	/**
 	 * <pre>
@@ -48,7 +49,7 @@ public class NettyServerConfig implements Cloneable {
 	 * 但namesrv没有用这个线程池
 	 * </pre>
 	 */
-	private int		serverCallbackExecutorThreads		= 0;
+	private int serverCallbackExecutorThreads = 0;
 
 	/**
 	 * <pre>
@@ -56,31 +57,31 @@ public class NettyServerConfig implements Cloneable {
 	 * 另,Netty Server Boss线程固定为1, 对应线程名NettyBoss_0
 	 * </pre>
 	 */
-	private int		serverSelectorThreads				= 3;
+	private int serverSelectorThreads = 3;
 
 	// Oneway信号量的值
-	private int		serverOnewaySemaphoreValue			= 256;
+	private int serverOnewaySemaphoreValue = 256;
 
 	// 异步信号量的值
-	private int		serverAsyncSemaphoreValue			= 64;
+	private int serverAsyncSemaphoreValue = 64;
 
 	// server心跳检测时间间隔
-	private int		serverChannelMaxIdleTimeSeconds		= 120;
+	private int serverChannelMaxIdleTimeSeconds = 120;
 
 	// server端发送缓冲区大小
-	private int		serverSocketSndBufSize				= NettySystemConfig.socketSndbufSize;
+	private int serverSocketSndBufSize = NettySystemConfig.socketSndbufSize;
 	// server端接收缓冲区大小
-	private int		serverSocketRcvBufSize				= NettySystemConfig.socketRcvbufSize;
-	private boolean	serverPooledByteBufAllocatorEnable	= true;
+	private int serverSocketRcvBufSize = NettySystemConfig.socketRcvbufSize;
+	private boolean serverPooledByteBufAllocatorEnable = true;
 
 	/**
 	 * make make install
 	 *
 	 *
-	 * ../glibc-2.10.1/configure \ --prefix=/usr \ --with-headers=/usr/include \ --host=x86_64-linux-gnu \
-	 * --build=x86_64-pc-linux-gnu \ --without-gd
+	 * ../glibc-2.10.1/configure \ --prefix=/usr \ --with-headers=/usr/include \
+	 * --host=x86_64-linux-gnu \ --build=x86_64-pc-linux-gnu \ --without-gd
 	 */
-	private boolean	useEpollNativeSelector				= false;
+	private boolean useEpollNativeSelector = false;
 
 	public int getListenPort() {
 		return listenPort;

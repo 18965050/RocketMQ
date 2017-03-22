@@ -47,12 +47,13 @@ import ch.qos.logback.classic.joran.JoranConfigurator;
 
 /**
  * namesrv启动类
+ * 
  * @author lvchenggang
  *
  */
 public class NamesrvStartup {
-	public static Properties	properties	= null;
-	public static CommandLine	commandLine	= null;
+	public static Properties properties = null;
+	public static CommandLine commandLine = null;
 
 	public static void main(String[] args) {
 		main0(args);
@@ -138,8 +139,8 @@ public class NamesrvStartup {
 			}
 
 			Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-				private volatile boolean	hasShutdown		= false;
-				private AtomicInteger		shutdownTimes	= new AtomicInteger(0);
+				private volatile boolean hasShutdown = false;
+				private AtomicInteger shutdownTimes = new AtomicInteger(0);
 
 				@Override
 				public void run() {

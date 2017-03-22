@@ -27,6 +27,7 @@ import com.alibaba.rocketmq.client.consumer.listener.MessageListenerConcurrently
 import com.alibaba.rocketmq.client.exception.MQClientException;
 import com.alibaba.rocketmq.common.consumer.ConsumeFromWhere;
 import com.alibaba.rocketmq.common.message.MessageExt;
+import com.alibaba.rocketmq.common.protocol.heartbeat.MessageModel;
 
 public class Consumer {
 
@@ -36,6 +37,10 @@ public class Consumer {
 		consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
 
 		consumer.setNamesrvAddr("localhost:9876");
+		consumer.setConsumeThreadMin(1);
+		consumer.setConsumeThreadMax(1);
+
+		consumer.setMessageModel(MessageModel.BROADCASTING);
 
 		consumer.subscribe("SimpleTopic", "*");
 
@@ -43,7 +48,8 @@ public class Consumer {
 
 			@Override
 			public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext context) {
-				// System.out.println(Thread.currentThread().getName() + " Receive New Messages: " + msgs);
+				// System.out.println(Thread.currentThread().getName() + "
+				// Receive New Messages: " + msgs);
 				if (CollectionUtils.isNotEmpty(msgs)) {
 					for (MessageExt msg : msgs) {
 						try {

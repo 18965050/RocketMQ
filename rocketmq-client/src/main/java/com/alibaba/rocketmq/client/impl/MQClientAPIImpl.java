@@ -154,24 +154,25 @@ import com.alibaba.rocketmq.remoting.protocol.RemotingSerializable;
 
 /**
  * 封装Request命令, 进行调用
+ * 
  * @author lvchenggang
  *
  */
 public class MQClientAPIImpl {
 
-	private final static Logger	log				= ClientLogger.getLog();
-	public static boolean		sendSmartMsg	=															//
+	private final static Logger log = ClientLogger.getLog();
+	public static boolean sendSmartMsg = //
 			Boolean.parseBoolean(System.getProperty("com.alibaba.rocketmq.client.sendSmartMsg", "true"));
 
 	static {
 		System.setProperty(RemotingCommand.RemotingVersionKey, Integer.toString(MQVersion.CurrentVersion));
 	}
 
-	private final RemotingClient			remotingClient;
-	private final TopAddressing				topAddressing;
-	private final ClientRemotingProcessor	clientRemotingProcessor;
-	private String							nameSrvAddr	= null;
-	private ClientConfig					clientConfig;
+	private final RemotingClient remotingClient;
+	private final TopAddressing topAddressing;
+	private final ClientRemotingProcessor clientRemotingProcessor;
+	private String nameSrvAddr = null;
+	private ClientConfig clientConfig;
 
 	public MQClientAPIImpl(final NettyClientConfig nettyClientConfig,
 			final ClientRemotingProcessor clientRemotingProcessor, RPCHook rpcHook, final ClientConfig clientConfig) {

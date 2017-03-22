@@ -38,24 +38,25 @@ import com.alibaba.rocketmq.remoting.exception.RemotingException;
 
 /**
  * default message producer
+ * 
  * @author lvchenggang
- *
+ * 
  */
 public class DefaultMQProducer extends ClientConfig implements MQProducer {
-	protected final transient DefaultMQProducerImpl	defaultMQProducerImpl;
-	private String									producerGroup;
+	protected final transient DefaultMQProducerImpl defaultMQProducerImpl;
+	private String producerGroup;
 	/**
 	 * Just for testing or demo program
 	 */
-	private String									createTopicKey						= MixAll.DEFAULT_TOPIC;
-	private volatile int							defaultTopicQueueNums				= 4;
-	private int										sendMsgTimeout						= 3000;
-	private int										compressMsgBodyOverHowmuch			= 1024 * 4;
-	private int										retryTimesWhenSendFailed			= 2;
-	private int										retryTimesWhenSendAsyncFailed		= 2;
+	private String createTopicKey = MixAll.DEFAULT_TOPIC;
+	private volatile int defaultTopicQueueNums = 4;
+	private int sendMsgTimeout = 3000;
+	private int compressMsgBodyOverHowmuch = 1024 * 4;
+	private int retryTimesWhenSendFailed = 2;
+	private int retryTimesWhenSendAsyncFailed = 2;
 
-	private boolean									retryAnotherBrokerWhenNotStoreOK	= false;
-	private int										maxMessageSize						= 1024 * 1024 * 4;		// 4M
+	private boolean retryAnotherBrokerWhenNotStoreOK = false;
+	private int maxMessageSize = 1024 * 1024 * 4; // 4M
 
 	public DefaultMQProducer() {
 		this(MixAll.DEFAULT_PRODUCER_GROUP, null);

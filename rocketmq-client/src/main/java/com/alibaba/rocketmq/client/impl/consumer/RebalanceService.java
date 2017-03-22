@@ -30,14 +30,15 @@ import com.alibaba.rocketmq.common.ServiceThread;
 
 /**
  * 负载均衡服务线程
+ * 
  * @author lvchenggang
  *
  */
 public class RebalanceService extends ServiceThread {
-	private static long				WaitInterval	= Long
+	private static long WaitInterval = Long
 			.parseLong(System.getProperty("rocketmq.client.rebalance.waitInterval", "20000"));
-	private final Logger			log				= ClientLogger.getLog();
-	private final MQClientInstance	mqClientFactory;
+	private final Logger log = ClientLogger.getLog();
+	private final MQClientInstance mqClientFactory;
 
 	public RebalanceService(MQClientInstance mqClientFactory) {
 		this.mqClientFactory = mqClientFactory;

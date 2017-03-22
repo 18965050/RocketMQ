@@ -22,9 +22,9 @@ package com.alibaba.rocketmq.remoting.netty;
  */
 public class NettyClientConfig {
 	/**
-	 * Worker thread number
+	 * Netty Client Codec Worker线程(NettyClientWorkerThread_i)
 	 */
-	private int		clientWorkerThreads					= 4;
+	private int clientWorkerThreads = 4;
 
 	/**
 	 * <pre>
@@ -32,22 +32,34 @@ public class NettyClientConfig {
 	 * 另, Netty Client IO 线程数为1(NettyClientSelector_0)
 	 * </pre>
 	 */
-	private int		clientCallbackExecutorThreads		= Runtime.getRuntime().availableProcessors();
-	private int		clientOnewaySemaphoreValue			= NettySystemConfig.ClientOnewaySemaphoreValue;
-	private int		clientAsyncSemaphoreValue			= NettySystemConfig.ClientAsyncSemaphoreValue;
-	private int		connectTimeoutMillis				= 3000;
-	private long	channelNotActiveInterval			= 1000 * 60;
+	private int clientCallbackExecutorThreads = Runtime.getRuntime().availableProcessors();
+	private int clientOnewaySemaphoreValue = NettySystemConfig.ClientOnewaySemaphoreValue;
+	private int clientAsyncSemaphoreValue = NettySystemConfig.ClientAsyncSemaphoreValue;
 
 	/**
-	 * IdleStateEvent will be triggered when neither read nor write was performed for the specified period of this time.
-	 * Specify {@code 0} to disable
+	 * Netty连接超时时长
 	 */
-	private int		clientChannelMaxIdleTimeSeconds		= 120;
+	private int connectTimeoutMillis = 3000;
+	private long channelNotActiveInterval = 1000 * 60;
 
-	private int		clientSocketSndBufSize				= NettySystemConfig.socketSndbufSize;
-	private int		clientSocketRcvBufSize				= NettySystemConfig.socketRcvbufSize;
-	private boolean	clientPooledByteBufAllocatorEnable	= false;
-	private boolean	clientCloseSocketIfTimeout			= false;
+	/**
+	 * IdleStateEvent will be triggered when neither read nor write was
+	 * performed for the specified period of this time. Specify {@code 0} to
+	 * disable
+	 */
+	private int clientChannelMaxIdleTimeSeconds = 120;
+
+	/**
+	 * client发送缓冲区大小
+	 */
+	private int clientSocketSndBufSize = NettySystemConfig.socketSndbufSize;
+
+	/**
+	 * client接收缓冲区大小
+	 */
+	private int clientSocketRcvBufSize = NettySystemConfig.socketRcvbufSize;
+	private boolean clientPooledByteBufAllocatorEnable = false;
+	private boolean clientCloseSocketIfTimeout = false;
 
 	public boolean isClientCloseSocketIfTimeout() {
 		return clientCloseSocketIfTimeout;

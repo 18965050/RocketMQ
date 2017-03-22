@@ -54,21 +54,20 @@ import io.netty.channel.Channel;
 
 /**
  * 路由管理器, 主要负责和broker之间的通信
+ * 
  * @author lvchenggang
  *
  */
 public class RouteInfoManager {
-	private static final Logger														log							= LoggerFactory
-			.getLogger(LoggerName.NamesrvLoggerName);
+	private static final Logger log = LoggerFactory.getLogger(LoggerName.NamesrvLoggerName);
 
-	private final static long														BrokerChannelExpiredTime	= 1000
-			* 60 * 2;
-	private final ReadWriteLock														lock						= new ReentrantReadWriteLock();
-	private final HashMap<String/* topic */, List<QueueData>>						topicQueueTable;
-	private final HashMap<String/* brokerName */, BrokerData>						brokerAddrTable;
-	private final HashMap<String/* clusterName */, Set<String/* brokerName */>>		clusterAddrTable;
-	private final HashMap<String/* brokerAddr */, BrokerLiveInfo>					brokerLiveTable;
-	private final HashMap<String/* brokerAddr */, List<String>/* Filter Server */>	filterServerTable;
+	private final static long BrokerChannelExpiredTime = 1000 * 60 * 2;
+	private final ReadWriteLock lock = new ReentrantReadWriteLock();
+	private final HashMap<String/* topic */, List<QueueData>> topicQueueTable;
+	private final HashMap<String/* brokerName */, BrokerData> brokerAddrTable;
+	private final HashMap<String/* clusterName */, Set<String/* brokerName */>> clusterAddrTable;
+	private final HashMap<String/* brokerAddr */, BrokerLiveInfo> brokerLiveTable;
+	private final HashMap<String/* brokerAddr */, /* Filter Server */List<String>> filterServerTable;
 
 	public RouteInfoManager() {
 		this.topicQueueTable = new HashMap<String, List<QueueData>>(1024);
@@ -753,10 +752,10 @@ public class RouteInfoManager {
 }
 
 class BrokerLiveInfo {
-	private long		lastUpdateTimestamp;
-	private DataVersion	dataVersion;
-	private Channel		channel;
-	private String		haServerAddr;
+	private long lastUpdateTimestamp;
+	private DataVersion dataVersion;
+	private Channel channel;
+	private String haServerAddr;
 
 	public BrokerLiveInfo(long lastUpdateTimestamp, DataVersion dataVersion, Channel channel, String haServerAddr) {
 		this.lastUpdateTimestamp = lastUpdateTimestamp;

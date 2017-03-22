@@ -29,13 +29,14 @@ import com.alibaba.rocketmq.remoting.RPCHook;
 
 /**
  * client 实例管理器
+ * 
  * @author lvchenggang
- *
+ * 
  */
 public class MQClientManager {
-	private static MQClientManager										instance				= new MQClientManager();
-	private AtomicInteger												factoryIndexGenerator	= new AtomicInteger();
-	private ConcurrentHashMap<String/* clientId */, MQClientInstance>	factoryTable			= new ConcurrentHashMap<String, MQClientInstance>();
+	private static MQClientManager instance = new MQClientManager();
+	private AtomicInteger factoryIndexGenerator = new AtomicInteger();
+	private ConcurrentHashMap<String/* clientId */, MQClientInstance> factoryTable = new ConcurrentHashMap<String, MQClientInstance>();
 
 	private MQClientManager() {
 

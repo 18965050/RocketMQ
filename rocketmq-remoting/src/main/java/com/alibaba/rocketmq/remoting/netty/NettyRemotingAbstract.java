@@ -54,21 +54,20 @@ import io.netty.channel.ChannelHandlerContext;
  * @author shijia.wxr
  */
 public abstract class NettyRemotingAbstract {
-	private static final Logger																			plog				= LoggerFactory
-			.getLogger(RemotingHelper.RemotingLogName);
+	private static final Logger plog = LoggerFactory.getLogger(RemotingHelper.RemotingLogName);
 
-	protected final Semaphore																			semaphoreOneway;
+	protected final Semaphore semaphoreOneway;
 
-	protected final Semaphore																			semaphoreAsync;
+	protected final Semaphore semaphoreAsync;
 
-	protected final ConcurrentHashMap<Integer /* opaque */, ResponseFuture>								responseTable		= new ConcurrentHashMap<Integer, ResponseFuture>(
+	protected final ConcurrentHashMap<Integer /* opaque */, ResponseFuture> responseTable = new ConcurrentHashMap<Integer, ResponseFuture>(
 			256);
 
-	protected final HashMap<Integer/* request code */, Pair<NettyRequestProcessor, ExecutorService>>	processorTable		= new HashMap<Integer, Pair<NettyRequestProcessor, ExecutorService>>(
+	protected final HashMap<Integer/* request code */, Pair<NettyRequestProcessor, ExecutorService>> processorTable = new HashMap<Integer, Pair<NettyRequestProcessor, ExecutorService>>(
 			64);
-	protected final NettyEventExecuter																	nettyEventExecuter	= new NettyEventExecuter();
+	protected final NettyEventExecuter nettyEventExecuter = new NettyEventExecuter();
 
-	protected Pair<NettyRequestProcessor, ExecutorService>												defaultRequestProcessor;
+	protected Pair<NettyRequestProcessor, ExecutorService> defaultRequestProcessor;
 
 	public NettyRemotingAbstract(final int permitsOneway, final int permitsAsync) {
 		this.semaphoreOneway = new Semaphore(permitsOneway, true);
@@ -408,8 +407,8 @@ public abstract class NettyRemotingAbstract {
 	}
 
 	class NettyEventExecuter extends ServiceThread {
-		private final LinkedBlockingQueue<NettyEvent>	eventQueue	= new LinkedBlockingQueue<NettyEvent>();
-		private final int								maxSize		= 10000;
+		private final LinkedBlockingQueue<NettyEvent> eventQueue = new LinkedBlockingQueue<NettyEvent>();
+		private final int maxSize = 10000;
 
 		public void putNettyEvent(final NettyEvent event) {
 			if (this.eventQueue.size() <= maxSize) {

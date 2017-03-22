@@ -67,25 +67,26 @@ import io.netty.util.concurrent.DefaultEventExecutorGroup;
 
 /**
  * Netty Server
+ * 
  * @author lvchenggang
  *
  */
 public class NettyRemotingServer extends NettyRemotingAbstract implements RemotingServer {
-	private static final Logger			log		= LoggerFactory.getLogger(RemotingHelper.RemotingLogName);
-	private final ServerBootstrap		serverBootstrap;
-	private final EventLoopGroup		eventLoopGroupSelector;
-	private final EventLoopGroup		eventLoopGroupBoss;
-	private final NettyServerConfig		nettyServerConfig;
+	private static final Logger log = LoggerFactory.getLogger(RemotingHelper.RemotingLogName);
+	private final ServerBootstrap serverBootstrap;
+	private final EventLoopGroup eventLoopGroupSelector;
+	private final EventLoopGroup eventLoopGroupBoss;
+	private final NettyServerConfig nettyServerConfig;
 
-	private final ExecutorService		publicExecutor;
-	private final ChannelEventListener	channelEventListener;
+	private final ExecutorService publicExecutor;
+	private final ChannelEventListener channelEventListener;
 
-	private final Timer					timer	= new Timer("ServerHouseKeepingService", true);
-	private DefaultEventExecutorGroup	defaultEventExecutorGroup;
+	private final Timer timer = new Timer("ServerHouseKeepingService", true);
+	private DefaultEventExecutorGroup defaultEventExecutorGroup;
 
-	private RPCHook						rpcHook;
+	private RPCHook rpcHook;
 
-	private int							port	= 0;
+	private int port = 0;
 
 	public NettyRemotingServer(final NettyServerConfig nettyServerConfig) {
 		this(nettyServerConfig, null);
@@ -125,8 +126,8 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 				&& nettyServerConfig.isUseEpollNativeSelector()) {
 			this.eventLoopGroupSelector = new EpollEventLoopGroup(nettyServerConfig.getServerSelectorThreads(),
 					new ThreadFactory() {
-						private AtomicInteger	threadIndex	= new AtomicInteger(0);
-						private int		threadTotal	= nettyServerConfig.getServerSelectorThreads();
+						private AtomicInteger threadIndex = new AtomicInteger(0);
+						private int threadTotal = nettyServerConfig.getServerSelectorThreads();
 
 						@Override
 						public Thread newThread(Runnable r) {
@@ -137,8 +138,8 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 		} else {
 			this.eventLoopGroupSelector = new NioEventLoopGroup(nettyServerConfig.getServerSelectorThreads(),
 					new ThreadFactory() {
-						private AtomicInteger	threadIndex	= new AtomicInteger(0);
-						private int		threadTotal	= nettyServerConfig.getServerSelectorThreads();
+						private AtomicInteger threadIndex = new AtomicInteger(0);
+						private int threadTotal = nettyServerConfig.getServerSelectorThreads();
 
 						@Override
 						public Thread newThread(Runnable r) {
@@ -358,7 +359,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
 	/**
 	 * <pre>
-	 * 心跳检测ChannelHandler,配合IdleStateHandler使用
+	 * Netty Server心跳检测ChannelHandler,配合IdleStateHandler使用
 	 * 用于发送自定义的事件NettyEvent
 	 * </pre>
 	 * 

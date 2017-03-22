@@ -16,30 +16,35 @@
  */
 package com.alibaba.rocketmq.broker.client;
 
-import com.alibaba.rocketmq.broker.BrokerController;
-import io.netty.channel.Channel;
-
 import java.util.List;
 
+import com.alibaba.rocketmq.broker.BrokerController;
+
+import io.netty.channel.Channel;
 
 /**
  * @author shijia.wxr
  */
+
+/**
+ * consumer clientId变更监听器
+ * 
+ * @author lvchenggang
+ *
+ */
 public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListener {
-    private final BrokerController brokerController;
+	private final BrokerController brokerController;
 
+	public DefaultConsumerIdsChangeListener(BrokerController brokerController) {
+		this.brokerController = brokerController;
+	}
 
-    public DefaultConsumerIdsChangeListener(BrokerController brokerController) {
-        this.brokerController = brokerController;
-    }
-
-
-    @Override
-    public void consumerIdsChanged(String group, List<Channel> channels) {
-        if (channels != null && brokerController.getBrokerConfig().isNotifyConsumerIdsChangedEnable()) {
-            for (Channel chl : channels) {
-                this.brokerController.getBroker2Client().notifyConsumerIdsChanged(chl, group);
-            }
-        }
-    }
+	@Override
+	public void consumerIdsChanged(String group, List<Channel> channels) {
+		if (channels != null && brokerController.getBrokerConfig().isNotifyConsumerIdsChangedEnable()) {
+			for (Channel chl : channels) {
+				this.brokerController.getBroker2Client().notifyConsumerIdsChanged(chl, group);
+			}
+		}
+	}
 }
