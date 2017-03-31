@@ -37,45 +37,34 @@ import com.alibaba.rocketmq.remoting.exception.RemotingCommandException;
  * @author shijia.wxr
  */
 public class RemotingCommand {
-	public static final String												SERIALIZE_TYPE_PROPERTY			= "rocketmq.serialize.type";
-	public static final String												SERIALIZE_TYPE_ENV				= "ROCKETMQ_SERIALIZE_TYPE";
-	private static final Logger												log								= LoggerFactory
-			.getLogger(RemotingHelper.RemotingLogName);
-	private static final int												RPC_TYPE						= 0;															// 0,
-																																											// REQUEST_COMMAND
-	private static final int												RPC_ONEWAY						= 1;															// 0,
-																																											// RPC
+	public static final String SERIALIZE_TYPE_PROPERTY = "rocketmq.serialize.type";
+	public static final String SERIALIZE_TYPE_ENV = "ROCKETMQ_SERIALIZE_TYPE";
+	private static final Logger log = LoggerFactory.getLogger(RemotingHelper.RemotingLogName);
+	private static final int RPC_TYPE = 0; // 0,
+											// REQUEST_COMMAND
+	private static final int RPC_ONEWAY = 1; // 0,
+												// RPC
 
-	private static final Map<Class<? extends CommandCustomHeader>, Field[]>	clazzFieldsCache				= new HashMap<Class<? extends CommandCustomHeader>, Field[]>();
-	private static final Map<Class, String>									canonicalNameCache				= new HashMap<Class, String>();
+	private static final Map<Class<? extends CommandCustomHeader>, Field[]> clazzFieldsCache = new HashMap<Class<? extends CommandCustomHeader>, Field[]>();
+	private static final Map<Class, String> canonicalNameCache = new HashMap<Class, String>();
 	// 1, RESPONSE_COMMAND
-	private static final Map<Field, Annotation>								notNullAnnotationCache			= new HashMap<Field, Annotation>();
+	private static final Map<Field, Annotation> notNullAnnotationCache = new HashMap<Field, Annotation>();
 	// 1, Oneway
 
-	private static final String												StringCanonicalName				= String.class
-			.getCanonicalName();
-	private static final String												DoubleCanonicalName1			= Double.class
-			.getCanonicalName();
-	private static final String												DoubleCanonicalName2			= double.class
-			.getCanonicalName();
-	private static final String												IntegerCanonicalName1			= Integer.class
-			.getCanonicalName();
-	private static final String												IntegerCanonicalName2			= int.class
-			.getCanonicalName();
-	private static final String												LongCanonicalName1				= Long.class
-			.getCanonicalName();
-	private static final String												LongCanonicalName2				= long.class
-			.getCanonicalName();
-	private static final String												BooleanCanonicalName1			= Boolean.class
-			.getCanonicalName();
-	private static final String												BooleanCanonicalName2			= boolean.class
-			.getCanonicalName();
-	public static final String												RemotingVersionKey				= "rocketmq.remoting.version";
-	private static volatile int												configVersion					= -1;
-	private static AtomicInteger											requestId						= new AtomicInteger(
-			0);
+	private static final String StringCanonicalName = String.class.getCanonicalName();
+	private static final String DoubleCanonicalName1 = Double.class.getCanonicalName();
+	private static final String DoubleCanonicalName2 = double.class.getCanonicalName();
+	private static final String IntegerCanonicalName1 = Integer.class.getCanonicalName();
+	private static final String IntegerCanonicalName2 = int.class.getCanonicalName();
+	private static final String LongCanonicalName1 = Long.class.getCanonicalName();
+	private static final String LongCanonicalName2 = long.class.getCanonicalName();
+	private static final String BooleanCanonicalName1 = Boolean.class.getCanonicalName();
+	private static final String BooleanCanonicalName2 = boolean.class.getCanonicalName();
+	public static final String RemotingVersionKey = "rocketmq.remoting.version";
+	private static volatile int configVersion = -1;
+	private static AtomicInteger requestId = new AtomicInteger(0);
 
-	private static SerializeType											serializeTypeConfigInThisServer	= SerializeType.JSON;
+	private static SerializeType serializeTypeConfigInThisServer = SerializeType.JSON;
 
 	static {
 		final String protocol = System.getProperty(SERIALIZE_TYPE_PROPERTY, System.getenv(SERIALIZE_TYPE_ENV));
@@ -94,7 +83,7 @@ public class RemotingCommand {
 	 * reponse: 0--成功; 非0--各种失败代码
 	 * </pre>
 	 */
-	private int								code;
+	private int code;
 
 	/**
 	 * <pre>
@@ -102,12 +91,12 @@ public class RemotingCommand {
 	 * response: 响应接收方实现语言
 	 * </pre>
 	 */
-	private LanguageCode					language				= LanguageCode.JAVA;
+	private LanguageCode language = LanguageCode.JAVA;
 
 	/**
 	 * request或response的版本
 	 */
-	private int								version					= 0;
+	private int version = 0;
 
 	/**
 	 * <pre>
@@ -115,7 +104,7 @@ public class RemotingCommand {
 	 * response: 应答方不做修改，直接返回
 	 * </pre>
 	 */
-	private int								opaque					= requestId.getAndIncrement();
+	private int opaque = requestId.getAndIncrement();
 
 	/**
 	 * <pre>
@@ -123,30 +112,30 @@ public class RemotingCommand {
 	 * 奇数(比如1,3,5)表示响应命令,偶数(比如0,2,4)表示请求命令
 	 * </pre>
 	 */
-	private int								flag					= 0;
+	private int flag = 0;
 
 	/**
 	 * <pre>
-	 * request:传输自定丿文本信息
+	 * request:传输自定义文本信息
 	 * response:错诨详细描述信息
 	 * </pre>
 	 */
-	private String							remark;
+	private String remark;
 
 	/**
 	 * request或response的自定义字段
 	 */
-	private HashMap<String, String>			extFields;
-	private transient CommandCustomHeader	customHeader;
+	private HashMap<String, String> extFields;
+	private transient CommandCustomHeader customHeader;
 
 	/**
 	 * 当前RPC的序列化方式: JSON or RocketMQ
 	 */
-	private SerializeType					serializeTypeCurrentRPC	= serializeTypeConfigInThisServer;
+	private SerializeType serializeTypeCurrentRPC = serializeTypeConfigInThisServer;
 	/**
 	
 	 */
-	private transient byte[]				body;
+	private transient byte[] body;
 
 	protected RemotingCommand() {
 	}
@@ -223,7 +212,8 @@ public class RemotingCommand {
 		int length = byteBuffer.limit();
 		// 拿前4个byte, 即head length
 		int oriHeaderLen = byteBuffer.getInt();
-		// 由于消息大小默认最大为16m(NettyDecoder.FRAME_MAX_LENGTH), 因此可以这样.同时, 这也说明了消息头大小最大为16m
+		// 由于消息大小默认最大为16m(NettyDecoder.FRAME_MAX_LENGTH), 因此可以这样.同时,
+		// 这也说明了消息头大小最大为16m
 		int headerLength = getHeaderLength(oriHeaderLen);
 
 		byte[] headerData = new byte[headerLength];
@@ -624,8 +614,13 @@ public class RemotingCommand {
 	}
 
 	public static void main(String[] args) {
-		int bit = 1 << RPC_TYPE;
-		System.out.println(3 & bit);
+		// int bit = 1 << RPC_TYPE;
+		// System.out.println(bit);
+		// System.out.println(1 & bit);
+
+		int bits = 1 << RPC_ONEWAY;
+		System.out.println(bits);
+		System.out.println(6 & bits);
 	}
 
 }
